@@ -111,7 +111,7 @@ Once the backend is running, access the interactive API docs:
 
 ## Project Status
 
-**Current Phase**: Phase 2 - NLP Pipeline (Complete)
+**Current Phase**: Phase 3 - Dashboard MVP (Complete)
 
 ### Phase 1: Foundation ✅
 - [x] Project structure setup
@@ -126,6 +126,13 @@ Once the backend is running, access the interactive API docs:
 - [x] Sentiment analysis (HuggingFace Transformers)
 - [x] Adjective extraction and counting
 - [x] Analysis orchestration service
+
+### Phase 3: Dashboard MVP ✅
+- [x] Dashboard with sentiment distribution and top players
+- [x] Transcripts list with analysis status and actions
+- [x] Players list with sentiment indicators
+- [x] Player detail with sentiment bar charts
+- [x] Word frequency visualization
 
 See [PLAN.md](./PLAN.md) for the full implementation roadmap.
 

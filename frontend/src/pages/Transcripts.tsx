@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Trash2, Play } from 'lucide-react';
+import { FileText, Trash2, Play, Loader2, CheckCircle } from 'lucide-react';
 import { transcriptApi } from '../api/client';
 import type { TranscriptListItem } from '../types';
 
 export default function Transcripts() {
   const [transcripts, setTranscripts] = useState<TranscriptListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [analyzing, setAnalyzing] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTranscripts();
@@ -34,11 +35,21 @@ export default function Transcripts() {
   }
 
   async function handleAnalyze(id: string) {
+    setAnalyzing(id);
     try {
-      await transcriptApi.analyze(id);
-      alert('Analysis queued successfully');
+      const result = await transcriptApi.analyze(id);
+      // Update the transcript status in the list
+      setTranscripts((prev) =>
+        prev.map((t) =>
+          t.id === id ? { ...t, processed: true } : t
+        )
+      );
+      alert(`Analysis complete! Found ${result.players_found} players.`);
     } catch (error) {
       console.error('Failed to trigger analysis:', error);
+      alert('Analysis failed. Please try again.');
+    } finally {
+      setAnalyzing(null);
     }
   }
 
@@ -129,12 +140,15 @@ export default function Transcripts() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
-                      className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
                         transcript.processed
                           ? 'bg-green-100 text-green-800'
                           : 'bg-yellow-100 text-yellow-800'
                       }`}
                     >
+                      {transcript.processed && (
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                      )}
                       {transcript.processed ? 'Analyzed' : 'Pending'}
                     </span>
                   </td>
@@ -144,10 +158,19 @@ export default function Transcripts() {
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
                       onClick={() => handleAnalyze(transcript.id)}
-                      className="text-primary-600 hover:text-primary-900 mr-3"
-                      title="Analyze"
+                      disabled={analyzing === transcript.id}
+                      className={`mr-3 ${
+                        analyzing === transcript.id
+                          ? 'text-gray-400 cursor-not-allowed'
+                          : 'text-primary-600 hover:text-primary-900'
+                      }`}
+                      title={transcript.processed ? 'Re-analyze' : 'Analyze'}
                     >
-                      <Play className="h-4 w-4" />
+                      {analyzing === transcript.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Play className="h-4 w-4" />
+                      )}
                     </button>
                     <button
                       onClick={() => handleDelete(transcript.id)}

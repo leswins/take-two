@@ -244,12 +244,12 @@ This tool provides data-driven insights into these patterns, enabling broadcaste
 - [x] Adjective extraction and counting
 - [x] Analysis results storage
 
-### Phase 3: Dashboard MVP
-- [ ] Transcript list view
-- [ ] Player list with basic stats
-- [ ] Single player detail view
-- [ ] Basic sentiment visualization (bar chart)
-- [ ] Word frequency display
+### Phase 3: Dashboard MVP ✅
+- [x] Transcript list view
+- [x] Player list with basic stats
+- [x] Single player detail view
+- [x] Basic sentiment visualization (bar chart)
+- [x] Word frequency display
 
 ### Phase 4: Advanced Analysis
 - [ ] Contextual sentiment (per-mention analysis)

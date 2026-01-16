@@ -133,6 +133,35 @@ export const analysisApi = {
     });
     return response.data;
   },
+
+  getDashboardStats: async () => {
+    const response = await api.get<{
+      totals: {
+        transcripts: number;
+        analyzed: number;
+        players: number;
+        total_analyses: number;
+      };
+      sentiment_distribution: {
+        positive: number;
+        negative: number;
+        neutral: number;
+      };
+      top_players: Array<{
+        id: string;
+        name: string;
+        mentions: number;
+        sentiment_score: number;
+        sentiment_label: string;
+      }>;
+      top_adjectives: Array<{
+        word: string;
+        count: number;
+        sentiment: string;
+      }>;
+    }>('/analysis/dashboard/stats');
+    return response.data;
+  },
 };
 
 export default api;

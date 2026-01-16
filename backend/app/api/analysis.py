@@ -136,3 +136,77 @@ async def compare_players(
         })
 
     return {"comparisons": comparisons}
+
+
+@router.get("/dashboard/stats")
+async def get_dashboard_stats(db: Session = Depends(get_db)):
+    """Get aggregated statistics for the dashboard."""
+    # Count totals
+    transcript_count = db.query(Transcript).count()
+    analyzed_count = db.query(Transcript).filter(Transcript.processed == True).count()
+    player_count = db.query(Player).count()
+
+    # Get all analysis results for sentiment distribution
+    results = db.query(AnalysisResult).all()
+
+    positive_count = sum(1 for r in results if r.sentiment_label == "positive")
+    negative_count = sum(1 for r in results if r.sentiment_label == "negative")
+    neutral_count = sum(1 for r in results if r.sentiment_label == "neutral")
+
+    # Get top players by mentions
+    player_mentions = {}
+    player_sentiments = {}
+    for result in results:
+        pid = str(result.player_id)
+        if pid not in player_mentions:
+            player_mentions[pid] = 0
+            player_sentiments[pid] = []
+        player_mentions[pid] += result.mention_count or 0
+        if result.sentiment_score is not None:
+            player_sentiments[pid].append(result.sentiment_score)
+
+    # Build top players list
+    top_players = []
+    players = db.query(Player).all()
+    player_map = {str(p.id): p for p in players}
+
+    for pid, mentions in sorted(player_mentions.items(), key=lambda x: x[1], reverse=True)[:5]:
+        player = player_map.get(pid)
+        if player:
+            sentiments = player_sentiments.get(pid, [])
+            avg_sentiment = sum(sentiments) / len(sentiments) if sentiments else 0
+            top_players.append({
+                "id": pid,
+                "name": player.name,
+                "mentions": mentions,
+                "sentiment_score": avg_sentiment,
+                "sentiment_label": "positive" if avg_sentiment > 0.1 else "negative" if avg_sentiment < -0.1 else "neutral",
+            })
+
+    # Aggregate all adjectives
+    all_adjectives = {}
+    for result in results:
+        for adj in result.adjectives or []:
+            word = adj.get("word", "")
+            if word:
+                if word not in all_adjectives:
+                    all_adjectives[word] = {"word": word, "count": 0, "sentiment": adj.get("sentiment", "neutral")}
+                all_adjectives[word]["count"] += adj.get("count", 1)
+
+    top_adjectives = sorted(all_adjectives.values(), key=lambda x: x["count"], reverse=True)[:15]
+
+    return {
+        "totals": {
+            "transcripts": transcript_count,
+            "analyzed": analyzed_count,
+            "players": player_count,
+            "total_analyses": len(results),
+        },
+        "sentiment_distribution": {
+            "positive": positive_count,
+            "negative": negative_count,
+            "neutral": neutral_count,
+        },
+        "top_players": top_players,
+        "top_adjectives": top_adjectives,
+    }

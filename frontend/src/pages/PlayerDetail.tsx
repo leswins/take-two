@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, MessageSquare, FileText } from 'lucide-react';
 import { playerApi, analysisApi } from '../api/client';
-import type { Player, PlayerAnalysisSummary } from '../types';
+import { SentimentBar, WordFrequencyChart } from '../components/charts';
+import type { Player, PlayerAnalysisSummary, AnalysisResult } from '../types';
 
 export default function PlayerDetail() {
   const { id } = useParams<{ id: string }>();
   const [player, setPlayer] = useState<Player | null>(null);
   const [summary, setSummary] = useState<PlayerAnalysisSummary | null>(null);
+  const [analyses, setAnalyses] = useState<AnalysisResult[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,12 +17,14 @@ export default function PlayerDetail() {
 
     async function fetchData() {
       try {
-        const [playerData, summaryData] = await Promise.all([
+        const [playerData, summaryData, analysesData] = await Promise.all([
           playerApi.get(id!),
           analysisApi.getPlayerSummary(id!).catch(() => null),
+          analysisApi.getForPlayer(id!).catch(() => []),
         ]);
         setPlayer(playerData);
         setSummary(summaryData);
+        setAnalyses(analysesData);
       } catch (error) {
         console.error('Failed to fetch player:', error);
       } finally {
@@ -63,24 +67,162 @@ export default function PlayerDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center space-x-4">
-        <Link to="/players" className="p-2 rounded-md hover:bg-gray-100">
-          <ArrowLeft className="h-5 w-5 text-gray-500" />
-        </Link>
-        <div className="flex items-center">
-          <div className="h-16 w-16 bg-primary-100 rounded-full flex items-center justify-center">
-            <span className="text-primary-700 font-bold text-2xl">
-              {player.name.charAt(0)}
-            </span>
-          </div>
-          <div className="ml-4">
-            <h1 className="text-2xl font-bold text-gray-900">{player.name}</h1>
-            <p className="text-gray-500">
-              {player.team || 'No team'} - {player.position || 'No position'}
-            </p>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <Link to="/players" className="p-2 rounded-md hover:bg-gray-100">
+            <ArrowLeft className="h-5 w-5 text-gray-500" />
+          </Link>
+          <div className="flex items-center">
+            <div className="h-16 w-16 bg-primary-100 rounded-full flex items-center justify-center">
+              <span className="text-primary-700 font-bold text-2xl">
+                {player.name.charAt(0)}
+              </span>
+            </div>
+            <div className="ml-4">
+              <h1 className="text-2xl font-bold text-gray-900">{player.name}</h1>
+              <p className="text-gray-500">
+                {player.team || 'No team'} - {player.position || 'No position'}
+              </p>
+            </div>
           </div>
         </div>
+        {summary?.sentiment_label && (
+          <span
+            className={`inline-flex items-center px-3 py-1 text-sm font-medium rounded-full ${
+              summary.sentiment_label === 'positive'
+                ? 'bg-green-100 text-green-800'
+                : summary.sentiment_label === 'negative'
+                ? 'bg-red-100 text-red-800'
+                : 'bg-gray-100 text-gray-800'
+            }`}
+          >
+            <SentimentIcon className="h-4 w-4 mr-1" />
+            {summary.sentiment_label}
+          </span>
+        )}
       </div>
+
+      {/* Stats Cards */}
+      {summary && (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-4">
+          <div className="bg-white overflow-hidden shadow rounded-lg p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 bg-blue-500 rounded-md p-3">
+                <MessageSquare className="h-6 w-6 text-white" />
+              </div>
+              <div className="ml-5">
+                <p className="text-sm font-medium text-gray-500">Total Mentions</p>
+                <p className="text-2xl font-semibold text-gray-900">{summary.total_mentions}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white overflow-hidden shadow rounded-lg p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 bg-purple-500 rounded-md p-3">
+                <FileText className="h-6 w-6 text-white" />
+              </div>
+              <div className="ml-5">
+                <p className="text-sm font-medium text-gray-500">Transcripts</p>
+                <p className="text-2xl font-semibold text-gray-900">{summary.transcript_count}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white overflow-hidden shadow rounded-lg p-5">
+            <div className="flex items-center">
+              <div className={`flex-shrink-0 rounded-md p-3 ${
+                summary.sentiment_label === 'positive' ? 'bg-green-500' :
+                summary.sentiment_label === 'negative' ? 'bg-red-500' : 'bg-gray-500'
+              }`}>
+                <SentimentIcon className="h-6 w-6 text-white" />
+              </div>
+              <div className="ml-5">
+                <p className="text-sm font-medium text-gray-500">Avg Sentiment</p>
+                <p className={`text-2xl font-semibold ${sentimentColor}`}>
+                  {summary.average_sentiment !== null
+                    ? (summary.average_sentiment > 0 ? '+' : '') + summary.average_sentiment.toFixed(2)
+                    : 'N/A'}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white overflow-hidden shadow rounded-lg p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 bg-orange-500 rounded-md p-3">
+                <TrendingUp className="h-6 w-6 text-white" />
+              </div>
+              <div className="ml-5">
+                <p className="text-sm font-medium text-gray-500">Unique Adjectives</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {summary.top_adjectives?.length || 0}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sentiment Visualization */}
+      {summary && summary.average_sentiment !== null && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Sentiment Analysis</h2>
+          <div className="max-w-xl">
+            <SentimentBar score={summary.average_sentiment} height={12} />
+          </div>
+          <p className="mt-4 text-sm text-gray-600">
+            Based on {summary.total_mentions} mentions across {summary.transcript_count} transcripts,
+            {player.name} is spoken about with a{' '}
+            <span className={`font-medium ${sentimentColor}`}>
+              {summary.sentiment_label}
+            </span>{' '}
+            tone overall.
+          </p>
+        </div>
+      )}
+
+      {/* Adjective Analysis */}
+      {summary && summary.top_adjectives && summary.top_adjectives.length > 0 && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {/* Word Frequency Chart */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <WordFrequencyChart
+              adjectives={summary.top_adjectives.map((adj) => ({
+                word: adj.word,
+                count: adj.count,
+                sentiment: typeof adj.sentiment === 'number'
+                  ? (adj.sentiment > 0 ? 'positive' : adj.sentiment < 0 ? 'negative' : 'neutral')
+                  : 'neutral',
+              }))}
+              maxItems={10}
+              title="Most Used Adjectives"
+            />
+          </div>
+
+          {/* Adjective Tags */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <h3 className="text-sm font-medium text-gray-700 mb-3">All Adjectives</h3>
+            <div className="flex flex-wrap gap-2">
+              {summary.top_adjectives.map((adj, index) => (
+                <span
+                  key={index}
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    typeof adj.sentiment === 'number'
+                      ? adj.sentiment > 0
+                        ? 'bg-green-100 text-green-800'
+                        : adj.sentiment < 0
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-gray-100 text-gray-700'
+                      : 'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  {adj.word}
+                  <span className="ml-1 opacity-60">({adj.count})</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Player Info */}
       <div className="bg-white shadow rounded-lg p-6">
@@ -107,67 +249,52 @@ export default function PlayerDetail() {
         </dl>
       </div>
 
-      {/* Analysis Summary */}
-      {summary && (
+      {/* Excerpts / Sample Mentions */}
+      {analyses.length > 0 && analyses.some((a) => a.excerpts && a.excerpts.length > 0) && (
         <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">
-            Analysis Summary
-          </h2>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-gray-900">
-                {summary.total_mentions}
-              </div>
-              <div className="text-sm text-gray-500">Total Mentions</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-gray-900">
-                {summary.transcript_count}
-              </div>
-              <div className="text-sm text-gray-500">Transcripts</div>
-            </div>
-            <div className="text-center">
-              <div className={`flex items-center justify-center ${sentimentColor}`}>
-                <SentimentIcon className="h-8 w-8" />
-                <span className="ml-2 text-2xl font-bold">
-                  {summary.average_sentiment?.toFixed(2) || 'N/A'}
-                </span>
-              </div>
-              <div className="text-sm text-gray-500">Avg. Sentiment</div>
-            </div>
-            <div className="text-center">
-              <span
-                className={`px-3 py-1 text-sm font-medium rounded-full ${
-                  summary.sentiment_label === 'positive'
-                    ? 'bg-green-100 text-green-800'
-                    : summary.sentiment_label === 'negative'
-                    ? 'bg-red-100 text-red-800'
-                    : 'bg-gray-100 text-gray-800'
-                }`}
-              >
-                {summary.sentiment_label || 'Unknown'}
-              </span>
-              <div className="text-sm text-gray-500 mt-2">Overall Sentiment</div>
-            </div>
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Sample Mentions</h2>
+          <div className="space-y-4">
+            {analyses
+              .flatMap((a) => a.excerpts || [])
+              .slice(0, 5)
+              .map((excerpt, index) => (
+                <div
+                  key={index}
+                  className="p-4 bg-gray-50 rounded-lg border-l-4"
+                  style={{
+                    borderLeftColor:
+                      excerpt.sentiment > 0.1
+                        ? '#22c55e'
+                        : excerpt.sentiment < -0.1
+                        ? '#ef4444'
+                        : '#9ca3af',
+                  }}
+                >
+                  <p className="text-sm text-gray-700 italic">"{excerpt.text}"</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Sentiment: {excerpt.sentiment > 0 ? '+' : ''}{excerpt.sentiment.toFixed(2)}
+                  </p>
+                </div>
+              ))}
           </div>
         </div>
       )}
 
-      {/* Top Adjectives */}
-      {summary && summary.top_adjectives.length > 0 && (
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">
-            Most Used Adjectives
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {summary.top_adjectives.map((adj, index) => (
-              <span
-                key={index}
-                className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
-              >
-                {adj.word} ({adj.count})
-              </span>
-            ))}
+      {/* Empty state */}
+      {!summary && (
+        <div className="bg-white shadow rounded-lg p-12 text-center">
+          <MessageSquare className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No analysis data</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            This player hasn't been mentioned in any analyzed transcripts yet.
+          </p>
+          <div className="mt-6">
+            <Link
+              to="/transcripts"
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
+            >
+              Analyze Transcripts
+            </Link>
           </div>
         </div>
       )}
