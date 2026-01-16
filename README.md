@@ -111,13 +111,21 @@ Once the backend is running, access the interactive API docs:
 
 ## Project Status
 
-**Current Phase**: Phase 1 - Foundation (Complete)
+**Current Phase**: Phase 2 - NLP Pipeline (Complete)
 
+### Phase 1: Foundation ✅
 - [x] Project structure setup
 - [x] Database schema and models
 - [x] FastAPI backend with transcript upload
 - [x] React frontend with routing
 - [x] Basic file upload UI
+
+### Phase 2: NLP Pipeline ✅
+- [x] Text preprocessing pipeline
+- [x] Named Entity Recognition (spaCy) for player detection
+- [x] Sentiment analysis (HuggingFace Transformers)
+- [x] Adjective extraction and counting
+- [x] Analysis orchestration service
 
 See [PLAN.md](./PLAN.md) for the full implementation roadmap.
 

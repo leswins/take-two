@@ -210,14 +210,34 @@ async def delete_transcript(transcript_id: uuid.UUID, db: Session = Depends(get_
 
 @router.post("/{transcript_id}/analyze")
 async def trigger_analysis(transcript_id: uuid.UUID, db: Session = Depends(get_db)):
-    """Trigger NLP analysis for a transcript (placeholder for Phase 2)."""
+    """Trigger NLP analysis for a transcript."""
     transcript = db.query(Transcript).filter(Transcript.id == transcript_id).first()
     if not transcript:
         raise HTTPException(status_code=404, detail="Transcript not found")
 
-    # TODO: Phase 2 - Trigger Celery task for NLP analysis
-    return {
-        "message": "Analysis queued",
-        "transcript_id": str(transcript_id),
-        "status": "pending",
-    }
+    # Import here to avoid circular imports
+    from app.services.analysis import get_analysis_service
+
+    try:
+        analysis_service = get_analysis_service()
+        results = analysis_service.analyze_and_persist(transcript_id, db)
+
+        return {
+            "message": "Analysis completed successfully",
+            "transcript_id": str(transcript_id),
+            "status": "completed",
+            "players_found": len(results),
+            "results": [
+                {
+                    "player_id": str(r.player_id),
+                    "sentiment_label": r.sentiment_label,
+                    "mention_count": r.mention_count,
+                }
+                for r in results
+            ],
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Analysis failed: {str(e)}"
+        )
