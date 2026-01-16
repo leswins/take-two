@@ -153,6 +153,7 @@ async def list_transcripts(
     limit: int = Query(50, ge=1, le=100),
     sport: Optional[str] = Query(None),
     processed: Optional[bool] = Query(None),
+    commentator: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
     """List all transcripts with optional filtering."""
@@ -162,9 +163,35 @@ async def list_transcripts(
         query = query.filter(Transcript.sport == sport)
     if processed is not None:
         query = query.filter(Transcript.processed == processed)
+    if commentator:
+        # Filter by commentator (stored in JSONB array)
+        query = query.filter(Transcript.commentators.contains([commentator]))
 
     transcripts = query.order_by(Transcript.uploaded_at.desc()).offset(skip).limit(limit).all()
     return transcripts
+
+
+@router.get("/filters/commentators")
+async def get_commentators(db: Session = Depends(get_db)):
+    """Get list of unique commentators from all transcripts."""
+    from sqlalchemy import func
+
+    transcripts = db.query(Transcript).filter(Transcript.commentators.isnot(None)).all()
+
+    commentators_set = set()
+    for t in transcripts:
+        if t.commentators:
+            for c in t.commentators:
+                commentators_set.add(c)
+
+    return sorted(list(commentators_set))
+
+
+@router.get("/filters/sports")
+async def get_sports(db: Session = Depends(get_db)):
+    """Get list of unique sports from all transcripts."""
+    sports = db.query(Transcript.sport).filter(Transcript.sport.isnot(None)).distinct().all()
+    return sorted([s[0] for s in sports if s[0]])
 
 
 @router.get("/{transcript_id}", response_model=TranscriptResponse)

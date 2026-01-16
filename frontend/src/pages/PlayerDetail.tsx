@@ -2,14 +2,21 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, TrendingUp, TrendingDown, Minus, MessageSquare, FileText, Quote, AlertTriangle } from 'lucide-react';
 import { playerApi, analysisApi } from '../api/client';
-import { SentimentBar, WordFrequencyChart } from '../components/charts';
+import { SentimentBar, WordFrequencyChart, SentimentTimeline, WordCloud } from '../components/charts';
 import type { Player, PlayerAnalysisSummary, AnalysisResult } from '../types';
+
+interface TimelineData {
+  position: number;
+  sentiment: number;
+  text: string;
+}
 
 export default function PlayerDetail() {
   const { id } = useParams<{ id: string }>();
   const [player, setPlayer] = useState<Player | null>(null);
   const [summary, setSummary] = useState<PlayerAnalysisSummary | null>(null);
   const [analyses, setAnalyses] = useState<AnalysisResult[]>([]);
+  const [timelineData, setTimelineData] = useState<TimelineData[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,14 +24,16 @@ export default function PlayerDetail() {
 
     async function fetchData() {
       try {
-        const [playerData, summaryData, analysesData] = await Promise.all([
+        const [playerData, summaryData, analysesData, timeline] = await Promise.all([
           playerApi.get(id!),
           analysisApi.getPlayerSummary(id!).catch(() => null),
           analysisApi.getForPlayer(id!).catch(() => []),
+          analysisApi.getPlayerTimeline(id!).catch(() => []),
         ]);
         setPlayer(playerData);
         setSummary(summaryData);
         setAnalyses(analysesData);
+        setTimelineData(timeline);
       } catch (error) {
         console.error('Failed to fetch player:', error);
       } finally {
@@ -177,6 +186,39 @@ export default function PlayerDetail() {
             </span>{' '}
             tone overall.
           </p>
+        </div>
+      )}
+
+      {/* Sentiment Timeline */}
+      {timelineData.length > 0 && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <SentimentTimeline
+            data={timelineData}
+            title="Sentiment Over Time"
+            showArea={true}
+            height={250}
+          />
+          <p className="mt-3 text-xs text-gray-500">
+            Shows how sentiment toward {player?.name} changes throughout commentary mentions.
+            Positive values indicate favorable commentary, negative values indicate critical commentary.
+          </p>
+        </div>
+      )}
+
+      {/* Word Cloud */}
+      {summary && summary.top_adjectives && summary.top_adjectives.length > 0 && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <WordCloud
+            words={summary.top_adjectives.map(adj => ({
+              word: adj.word,
+              count: adj.count,
+              sentiment: typeof adj.sentiment === 'number'
+                ? (adj.sentiment > 0 ? 'positive' : adj.sentiment < 0 ? 'negative' : 'neutral')
+                : 'neutral',
+            }))}
+            maxWords={25}
+            title="Word Cloud - Descriptive Language"
+          />
         </div>
       )}
 

@@ -188,6 +188,62 @@ export const analysisApi = {
     });
     return response.data;
   },
+
+  getPlayerTimeline: async (playerId: string) => {
+    const response = await api.get<Array<{
+      position: number;
+      sentiment: number;
+      text: string;
+      transcript_id: string;
+    }>>(`/analysis/player/${playerId}/timeline`);
+    return response.data;
+  },
+
+  getPlayerComparisonData: async (playerIds: string[]) => {
+    const response = await api.get<Array<{
+      id: string;
+      name: string;
+      sentiment: number;
+      mentions: number;
+      positivePercent: number;
+      negativePercent: number;
+      transcriptCount: number;
+    }>>('/analysis/comparison/players', {
+      params: { player_ids: playerIds.join(',') },
+    });
+    return response.data;
+  },
+
+  getCommentatorStats: async (commentatorName: string) => {
+    const response = await api.get<{
+      commentator: string;
+      transcript_count: number;
+      players_analyzed: number;
+      sentiment_distribution: {
+        positive: number;
+        negative: number;
+        neutral: number;
+      };
+      top_players: Array<{
+        id: string;
+        name: string;
+        mentions: number;
+        sentiment: number;
+        sentiment_label: string;
+      }>;
+    }>(`/analysis/commentator/${encodeURIComponent(commentatorName)}/stats`);
+    return response.data;
+  },
+
+  getCommentators: async () => {
+    const response = await api.get<string[]>('/transcripts/filters/commentators');
+    return response.data;
+  },
+
+  getSports: async () => {
+    const response = await api.get<string[]>('/transcripts/filters/sports');
+    return response.data;
+  },
 };
 
 export default api;

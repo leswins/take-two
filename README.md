@@ -111,7 +111,7 @@ Once the backend is running, access the interactive API docs:
 
 ## Project Status
 
-**Current Phase**: Phase 4 - Advanced Analysis (Complete)
+**Current Phase**: Phase 5 - Enhanced Visualization (Complete)
 
 ### Phase 1: Foundation ✅
 - [x] Project structure setup
@@ -140,6 +140,13 @@ Once the backend is running, access the interactive API docs:
 - [x] Comparative player analysis with bias scoring
 - [x] Bias scoring algorithm with weighted indicators
 - [x] Confidence scoring for analysis results
+
+### Phase 5: Enhanced Visualization ✅
+- [x] Interactive sentiment timeline with area charts
+- [x] Word clouds per player (CSS-based)
+- [x] Heat maps for sentiment intensity
+- [x] Multi-player comparison charts (bar and radar)
+- [x] Commentator-specific views and filtering
 
 See [PLAN.md](./PLAN.md) for the full implementation roadmap.
 
