@@ -1,0 +1,27 @@
+# Render Blueprint - Deploy backend as web service
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: sports-commentary-api
+    runtime: python
+    region: oregon
+    plan: starter  # $7/month - suitable for ML workloads
+    rootDir: backend
+    buildCommand: |
+      pip install -r requirements.txt
+      python -m spacy download en_core_web_sm
+    startCommand: python -m alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false  # Set manually in Render dashboard
+      - key: REDIS_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: DEBUG
+        value: false
+      - key: PYTHON_VERSION
+        value: "3.11.6"
+    autoDeploy: true

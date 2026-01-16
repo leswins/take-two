@@ -39,9 +39,14 @@ env/
 # Environment files
 .env
 .env.local
+!.env.example
 
 # Uploads
 uploads/
+
+# ML model cache
+.cache/
+models/
 
 # Testing
 .coverage

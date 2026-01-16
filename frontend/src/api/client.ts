@@ -10,14 +10,18 @@ import type {
   TranscriptBiasAnalysis,
   ComparativeAnalysis,
 } from '../types';
+import { env } from '../config/env';
 
-const API_BASE = '/api/v1';
+// Use environment-based API URL for production, relative URL for development
+const API_BASE = `${env.apiUrl}/api/v1`;
 
 const api = axios.create({
   baseURL: API_BASE,
   headers: {
     'Content-Type': 'application/json',
   },
+  // Increase timeout for ML model processing
+  timeout: 120000,
 });
 
 // Transcript API
