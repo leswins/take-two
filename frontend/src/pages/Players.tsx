@@ -182,6 +182,21 @@ export default function Players() {
                         )}
                       </div>
                     )}
+
+                  {/* Top phrases preview */}
+                  {player.summary.top_phrases &&
+                    player.summary.top_phrases.length > 0 && (
+                      <div className="mt-2">
+                        <span className="text-xs text-purple-600 italic">
+                          "{player.summary.top_phrases[0].phrase}"
+                          {player.summary.top_phrases.length > 1 && (
+                            <span className="text-gray-400 not-italic ml-1">
+                              +{player.summary.top_phrases.length - 1} phrases
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    )}
                 </div>
               )}
             </Link>

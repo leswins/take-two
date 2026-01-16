@@ -7,6 +7,8 @@ import type {
   AnalysisResult,
   PlayerAnalysisSummary,
   UploadResponse,
+  TranscriptBiasAnalysis,
+  ComparativeAnalysis,
 } from '../types';
 
 const API_BASE = '/api/v1';
@@ -160,6 +162,30 @@ export const analysisApi = {
         sentiment: string;
       }>;
     }>('/analysis/dashboard/stats');
+    return response.data;
+  },
+
+  getTranscriptBias: async (transcriptId: string) => {
+    const response = await api.get<TranscriptBiasAnalysis>(`/analysis/transcript/${transcriptId}/bias`);
+    return response.data;
+  },
+
+  compareBias: async (playerIds: string[]) => {
+    const response = await api.get<{
+      fairness_score: number;
+      most_favored: string | null;
+      least_favored: string | null;
+      disparity_score: number;
+      player_rankings: Array<{
+        player_name: string;
+        rank: number;
+        bias_score: number;
+        bias_level: string;
+        confidence: number;
+      }>;
+    }>('/analysis/compare/bias', {
+      params: { player_ids: playerIds.join(',') },
+    });
     return response.data;
   },
 };

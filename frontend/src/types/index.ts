@@ -82,6 +82,7 @@ export interface PlayerAnalysisSummary {
   average_sentiment: number | null;
   sentiment_label: 'positive' | 'negative' | 'neutral' | null;
   top_adjectives: AdjectiveDetail[];
+  top_phrases: PhraseDetail[];
   transcript_count: number;
 }
 
@@ -89,4 +90,47 @@ export interface UploadResponse {
   id: string;
   filename: string;
   message: string;
+}
+
+// Bias Analysis Types
+export interface BiasIndicator {
+  category: string;
+  description: string;
+  score: number;
+  weight: number;
+  evidence: string[];
+}
+
+export interface PlayerBiasScore {
+  player_id: string;
+  player_name: string;
+  bias_score: number;
+  bias_level: 'minimal' | 'low' | 'moderate' | 'high' | 'severe';
+  confidence: number;
+  indicators: BiasIndicator[];
+}
+
+export interface PlayerComparisonItem {
+  player_id: string;
+  player_name: string;
+  rank: number;
+  bias_score: number;
+  bias_level: string;
+  sentiment_score: number | null;
+  mention_count: number;
+}
+
+export interface ComparativeAnalysis {
+  fairness_score: number;
+  most_favored: string | null;
+  least_favored: string | null;
+  disparity_score: number;
+  players: PlayerComparisonItem[];
+}
+
+export interface TranscriptBiasAnalysis {
+  transcript_id: string;
+  players_analyzed: number;
+  comparative_analysis: ComparativeAnalysis | null;
+  player_scores: PlayerBiasScore[];
 }

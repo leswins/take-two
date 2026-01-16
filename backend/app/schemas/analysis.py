@@ -49,4 +49,47 @@ class PlayerAnalysisSummary(BaseModel):
     average_sentiment: Optional[float] = None
     sentiment_label: Optional[str] = None
     top_adjectives: List[AdjectiveDetail] = []
+    top_phrases: List[PhraseDetail] = []
     transcript_count: int
+
+
+class BiasIndicatorDetail(BaseModel):
+    category: str
+    description: str
+    score: float
+    weight: float
+    evidence: List[str] = []
+
+
+class PlayerBiasScore(BaseModel):
+    player_id: UUID
+    player_name: str
+    bias_score: float
+    bias_level: str  # minimal, low, moderate, high, severe
+    confidence: float
+    indicators: List[BiasIndicatorDetail] = []
+
+
+class PlayerComparisonItem(BaseModel):
+    player_id: str
+    player_name: str
+    rank: int
+    bias_score: float
+    bias_level: str
+    sentiment_score: Optional[float] = None
+    mention_count: int = 0
+
+
+class ComparativeAnalysisResponse(BaseModel):
+    fairness_score: float
+    most_favored: Optional[str] = None
+    least_favored: Optional[str] = None
+    disparity_score: float
+    players: List[PlayerComparisonItem] = []
+
+
+class TranscriptBiasAnalysis(BaseModel):
+    transcript_id: UUID
+    players_analyzed: int
+    comparative_analysis: Optional[ComparativeAnalysisResponse] = None
+    player_scores: List[PlayerBiasScore] = []

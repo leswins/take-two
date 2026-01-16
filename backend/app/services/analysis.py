@@ -16,9 +16,13 @@ from app.services.nlp import (
     entity_recognizer,
     sentiment_analyzer,
     adjective_extractor,
+    phrase_detector,
+    bias_scorer,
     ProcessedText,
     IdentifiedPlayer,
     SentimentLabel,
+    BiasScore,
+    ComparativeBiasAnalysis,
 )
 
 
@@ -34,6 +38,9 @@ class PlayerAnalysisResult:
     adjectives: List[Dict[str, Any]] = field(default_factory=list)
     phrases: List[Dict[str, Any]] = field(default_factory=list)
     excerpts: List[Dict[str, Any]] = field(default_factory=list)
+    bias_score: Optional[float] = None
+    bias_level: Optional[str] = None
+    bias_indicators: List[Dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -44,12 +51,14 @@ class TranscriptAnalysisResult:
     players_found: List[str]
     player_results: List[PlayerAnalysisResult]
     analysis_timestamp: datetime = field(default_factory=datetime.utcnow)
+    comparative_analysis: Optional[Dict[str, Any]] = None
 
 
 class AnalysisService:
     """
     Main service for analyzing sports commentary transcripts.
-    Orchestrates preprocessing, NER, sentiment analysis, and adjective extraction.
+    Orchestrates preprocessing, NER, sentiment analysis, adjective extraction,
+    phrase detection, and bias scoring.
     """
 
     def __init__(self, db: Optional[Session] = None):
@@ -101,11 +110,17 @@ class AnalysisService:
         # Sort by mention count (most mentioned first)
         player_results.sort(key=lambda x: x.mention_count, reverse=True)
 
+        # Step 5: Comparative bias analysis
+        comparative_analysis = None
+        if len(player_results) >= 2:
+            comparative_analysis = self._compare_players(player_results)
+
         return TranscriptAnalysisResult(
             transcript_id=transcript_id,
             processed_text=processed,
             players_found=[p.player_name for p in player_results],
-            player_results=player_results
+            player_results=player_results,
+            comparative_analysis=comparative_analysis
         )
 
     def _analyze_player(
@@ -121,7 +136,7 @@ class AnalysisService:
             identified_player: Player with their mentions
 
         Returns:
-            PlayerAnalysisResult with sentiment and adjective data
+            PlayerAnalysisResult with sentiment, adjective, phrase, and bias data
         """
         player_name = identified_player.canonical_name
         mentions = identified_player.mentions
@@ -135,9 +150,6 @@ class AnalysisService:
         # Sentiment analysis on mentions
         avg_sentiment, sentiment_label, sentiment_results = \
             sentiment_analyzer.analyze_player_mentions(mention_dicts, text)
-
-        # Calculate confidence based on number of mentions
-        confidence = min(1.0, len(mentions) / 10)  # Max confidence at 10+ mentions
 
         # Adjective extraction
         aliases = list(identified_player.aliases)
@@ -155,16 +167,67 @@ class AnalysisService:
             for adj in adjective_profile.adjectives[:20]  # Top 20
         ]
 
+        # Phrase detection
+        phrase_profile = phrase_detector.build_player_phrase_profile(
+            text, player_name, aliases
+        )
+
+        # Build phrases list for storage
+        phrases = [
+            {
+                'phrase': p.phrase,
+                'count': p.count,
+                'sentiment': p.sentiment_hint or 'neutral',
+                'context': p.contexts[0] if p.contexts else ''
+            }
+            for p in phrase_profile.phrases[:15]  # Top 15
+        ]
+
         # Build excerpts (sample sentences mentioning the player)
         excerpts = []
+        excerpt_sentiments = []
         for i, mention in enumerate(mentions[:10]):  # First 10 mentions
             if mention.sentence:
                 sentiment_result = sentiment_results[i] if i < len(sentiment_results) else None
+                sentiment_value = sentiment_result.score if sentiment_result else 0.0
                 excerpts.append({
                     'text': mention.sentence,
-                    'sentiment': sentiment_result.score if sentiment_result else 0.0,
+                    'sentiment': sentiment_value,
                     'position': mention.start
                 })
+                excerpt_sentiments.append(sentiment_value)
+
+        # Calculate sentiment distribution
+        sentiment_distribution = {
+            'positive': sum(1 for r in sentiment_results if r.score > 0.1),
+            'negative': sum(1 for r in sentiment_results if r.score < -0.1),
+            'neutral': sum(1 for r in sentiment_results if -0.1 <= r.score <= 0.1),
+        }
+
+        # Bias scoring
+        bias_result = bias_scorer.calculate_bias_score(
+            player_name=player_name,
+            sentiment_score=avg_sentiment,
+            sentiment_distribution=sentiment_distribution,
+            adjective_sentiments=adjectives,
+            mention_count=identified_player.mention_count,
+            excerpt_sentiments=excerpt_sentiments
+        )
+
+        # Calculate confidence based on multiple factors
+        confidence = bias_result.confidence
+
+        # Build bias indicators for storage
+        bias_indicators = [
+            {
+                'category': ind.category,
+                'description': ind.description,
+                'score': ind.score,
+                'weight': ind.weight,
+                'evidence': ind.evidence
+            }
+            for ind in bias_result.indicators
+        ]
 
         return PlayerAnalysisResult(
             player_name=player_name,
@@ -173,9 +236,72 @@ class AnalysisService:
             sentiment_label=sentiment_label.value if isinstance(sentiment_label, SentimentLabel) else str(sentiment_label),
             confidence=confidence,
             adjectives=adjectives,
-            phrases=[],  # TODO: Implement phrase extraction in future phase
-            excerpts=excerpts
+            phrases=phrases,
+            excerpts=excerpts,
+            bias_score=bias_result.overall_score,
+            bias_level=bias_result.bias_level.value,
+            bias_indicators=bias_indicators
         )
+
+    def _compare_players(
+        self,
+        player_results: List[PlayerAnalysisResult]
+    ) -> Dict[str, Any]:
+        """
+        Perform comparative bias analysis across players.
+
+        Args:
+            player_results: List of player analysis results
+
+        Returns:
+            Comparative analysis data
+        """
+        # Build bias scores for comparison
+        bias_scores = []
+        for result in player_results:
+            if result.bias_score is not None:
+                # Reconstruct BiasScore for comparison
+                from app.services.nlp.bias import BiasScore, BiasLevel, BiasIndicator
+                indicators = [
+                    BiasIndicator(
+                        category=ind['category'],
+                        description=ind['description'],
+                        score=ind['score'],
+                        weight=ind['weight'],
+                        evidence=ind.get('evidence', [])
+                    )
+                    for ind in result.bias_indicators
+                ]
+                bias_score = BiasScore(
+                    player_name=result.player_name,
+                    overall_score=result.bias_score,
+                    bias_level=BiasLevel(result.bias_level),
+                    confidence=result.confidence,
+                    indicators=indicators
+                )
+                bias_scores.append(bias_score)
+
+        if len(bias_scores) < 2:
+            return None
+
+        # Run comparative analysis
+        comparison = bias_scorer.compare_players(bias_scores)
+
+        return {
+            'fairness_score': comparison.fairness_score,
+            'most_favored': comparison.most_favored,
+            'least_favored': comparison.least_favored,
+            'disparity_score': comparison.disparity_score,
+            'player_rankings': [
+                {
+                    'player_name': p.player_name,
+                    'rank': p.comparative_rank,
+                    'bias_score': p.overall_score,
+                    'bias_level': p.bias_level.value
+                }
+                for p in comparison.players
+            ]
+        }
 
     def analyze_and_persist(
         self,

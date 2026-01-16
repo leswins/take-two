@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, MessageSquare, FileText } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, MessageSquare, FileText, Quote, AlertTriangle } from 'lucide-react';
 import { playerApi, analysisApi } from '../api/client';
 import { SentimentBar, WordFrequencyChart } from '../components/charts';
 import type { Player, PlayerAnalysisSummary, AnalysisResult } from '../types';
@@ -219,6 +219,94 @@ export default function PlayerDetail() {
                   <span className="ml-1 opacity-60">({adj.count})</span>
                 </span>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Phrase Analysis */}
+      {summary && summary.top_phrases && summary.top_phrases.length > 0 && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="flex items-center mb-4">
+            <Quote className="h-5 w-5 text-purple-500 mr-2" />
+            <h2 className="text-lg font-medium text-gray-900">Common Phrases</h2>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">
+            Frequently used phrases and expressions when describing {player.name}:
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {summary.top_phrases.map((phrase, index) => (
+              <div
+                key={index}
+                className="p-3 bg-purple-50 rounded-lg border border-purple-100"
+              >
+                <p className="text-sm font-medium text-purple-900">
+                  "{phrase.phrase}"
+                </p>
+                <div className="mt-1 flex items-center justify-between text-xs text-purple-600">
+                  <span>Used {phrase.count} times</span>
+                  {phrase.context && (
+                    <span className="text-gray-500 truncate max-w-[200px]">
+                      e.g., "{phrase.context}"
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Bias Indicator */}
+      {summary && summary.average_sentiment !== null && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="flex items-center mb-4">
+            <AlertTriangle className="h-5 w-5 text-amber-500 mr-2" />
+            <h2 className="text-lg font-medium text-gray-900">Commentary Bias Analysis</h2>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <p className="text-sm font-medium text-gray-500">Sentiment Skew</p>
+              <p className={`text-xl font-semibold ${
+                Math.abs(summary.average_sentiment) > 0.3 ? 'text-amber-600' :
+                Math.abs(summary.average_sentiment) > 0.1 ? 'text-blue-600' : 'text-green-600'
+              }`}>
+                {Math.abs(summary.average_sentiment) > 0.3 ? 'Strong' :
+                 Math.abs(summary.average_sentiment) > 0.1 ? 'Moderate' : 'Minimal'}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {summary.average_sentiment > 0.3 ? 'Strong positive bias detected' :
+                 summary.average_sentiment < -0.3 ? 'Strong negative bias detected' :
+                 summary.average_sentiment > 0.1 ? 'Slight positive leaning' :
+                 summary.average_sentiment < -0.1 ? 'Slight negative leaning' :
+                 'Balanced coverage'}
+              </p>
+            </div>
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <p className="text-sm font-medium text-gray-500">Coverage Volume</p>
+              <p className={`text-xl font-semibold ${
+                summary.total_mentions > 50 ? 'text-purple-600' :
+                summary.total_mentions > 20 ? 'text-blue-600' : 'text-gray-600'
+              }`}>
+                {summary.total_mentions > 50 ? 'High' :
+                 summary.total_mentions > 20 ? 'Moderate' : 'Low'}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {summary.total_mentions} mentions across {summary.transcript_count} transcripts
+              </p>
+            </div>
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <p className="text-sm font-medium text-gray-500">Language Diversity</p>
+              <p className={`text-xl font-semibold ${
+                (summary.top_adjectives?.length || 0) > 8 ? 'text-green-600' :
+                (summary.top_adjectives?.length || 0) > 4 ? 'text-blue-600' : 'text-amber-600'
+              }`}>
+                {(summary.top_adjectives?.length || 0) > 8 ? 'Rich' :
+                 (summary.top_adjectives?.length || 0) > 4 ? 'Moderate' : 'Limited'}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {summary.top_adjectives?.length || 0} unique descriptive words used
+              </p>
             </div>
           </div>
         </div>

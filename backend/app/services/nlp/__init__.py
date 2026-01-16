@@ -21,6 +21,20 @@ from app.services.nlp.adjectives import (
     PlayerAdjectiveProfile,
     adjective_extractor,
 )
+from app.services.nlp.phrases import (
+    PhraseDetector,
+    DetectedPhrase,
+    PlayerPhraseProfile,
+    phrase_detector,
+)
+from app.services.nlp.bias import (
+    BiasScorer,
+    BiasScore,
+    BiasLevel,
+    BiasIndicator,
+    ComparativeBiasAnalysis,
+    bias_scorer,
+)
 
 __all__ = [
     # Preprocessing
@@ -42,4 +56,16 @@ __all__ = [
     'AdjectiveInfo',
     'PlayerAdjectiveProfile',
     'adjective_extractor',
+    # Phrase Detection
+    'PhraseDetector',
+    'DetectedPhrase',
+    'PlayerPhraseProfile',
+    'phrase_detector',
+    # Bias Scoring
+    'BiasScorer',
+    'BiasScore',
+    'BiasLevel',
+    'BiasIndicator',
+    'ComparativeBiasAnalysis',
+    'bias_scorer',
 ]

@@ -111,7 +111,7 @@ Once the backend is running, access the interactive API docs:
 
 ## Project Status
 
-**Current Phase**: Phase 3 - Dashboard MVP (Complete)
+**Current Phase**: Phase 4 - Advanced Analysis (Complete)
 
 ### Phase 1: Foundation ✅
 - [x] Project structure setup
@@ -133,6 +133,13 @@ Once the backend is running, access the interactive API docs:
 - [x] Players list with sentiment indicators
 - [x] Player detail with sentiment bar charts
 - [x] Word frequency visualization
+
+### Phase 4: Advanced Analysis ✅
+- [x] Contextual sentiment (per-mention analysis)
+- [x] Phrase detection and tracking
+- [x] Comparative player analysis with bias scoring
+- [x] Bias scoring algorithm with weighted indicators
+- [x] Confidence scoring for analysis results
 
 See [PLAN.md](./PLAN.md) for the full implementation roadmap.
 

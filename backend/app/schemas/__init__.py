@@ -20,6 +20,11 @@ from app.schemas.analysis import (
     AdjectiveDetail,
     PhraseDetail,
     ExcerptDetail,
+    BiasIndicatorDetail,
+    PlayerBiasScore,
+    PlayerComparisonItem,
+    ComparativeAnalysisResponse,
+    TranscriptBiasAnalysis,
 )
 
 __all__ = [
@@ -40,4 +45,9 @@ __all__ = [
     "AdjectiveDetail",
     "PhraseDetail",
     "ExcerptDetail",
+    "BiasIndicatorDetail",
+    "PlayerBiasScore",
+    "PlayerComparisonItem",
+    "ComparativeAnalysisResponse",
+    "TranscriptBiasAnalysis",
 ]
