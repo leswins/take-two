@@ -325,6 +325,146 @@ async def get_transcript_bias_analysis(transcript_id: uuid.UUID, db: Session = D
     )
 
 
+@router.get("/player/{player_id}/timeline")
+async def get_player_sentiment_timeline(player_id: uuid.UUID, db: Session = Depends(get_db)):
+    """Get sentiment data over time for timeline visualization."""
+    results = (
+        db.query(AnalysisResult)
+        .filter(AnalysisResult.player_id == player_id)
+        .order_by(AnalysisResult.analyzed_at)
+        .all()
+    )
+
+    timeline_data = []
+    for i, result in enumerate(results):
+        # Add each excerpt with position
+        for j, excerpt in enumerate(result.excerpts or []):
+            timeline_data.append({
+                "position": excerpt.get("position", len(timeline_data)),
+                "sentiment": excerpt.get("sentiment", 0),
+                "text": excerpt.get("text", "")[:100],
+                "transcript_id": str(result.transcript_id),
+            })
+
+    return timeline_data
+
+
+@router.get("/comparison/players")
+async def get_player_comparison_data(
+    player_ids: str = Query(..., description="Comma-separated player IDs"),
+    db: Session = Depends(get_db),
+):
+    """Get comparison data for multiple players for charts."""
+    ids = [uuid.UUID(pid.strip()) for pid in player_ids.split(",")]
+
+    comparison_data = []
+    for player_id in ids:
+        player = db.query(Player).filter(Player.id == player_id).first()
+        if not player:
+            continue
+
+        results = db.query(AnalysisResult).filter(AnalysisResult.player_id == player_id).all()
+        if not results:
+            continue
+
+        total_mentions = sum(r.mention_count for r in results)
+        sentiments = [r.sentiment_score for r in results if r.sentiment_score is not None]
+        avg_sentiment = sum(sentiments) / len(sentiments) if sentiments else 0.0
+
+        positive = sum(1 for r in results if r.sentiment_label == "positive")
+        negative = sum(1 for r in results if r.sentiment_label == "negative")
+        total = len(results)
+
+        comparison_data.append({
+            "id": str(player_id),
+            "name": player.name,
+            "sentiment": avg_sentiment,
+            "mentions": total_mentions,
+            "positivePercent": (positive / total * 100) if total > 0 else 0,
+            "negativePercent": (negative / total * 100) if total > 0 else 0,
+            "transcriptCount": total,
+        })
+
+    return comparison_data
+
+
+@router.get("/commentator/{commentator_name}/stats")
+async def get_commentator_stats(commentator_name: str, db: Session = Depends(get_db)):
+    """Get analysis stats filtered by commentator."""
+    # Get transcripts by this commentator
+    transcripts = (
+        db.query(Transcript)
+        .filter(Transcript.commentators.contains([commentator_name]))
+        .filter(Transcript.processed == True)
+        .all()
+    )
+
+    if not transcripts:
+        return {
+            "commentator": commentator_name,
+            "transcript_count": 0,
+            "players_analyzed": 0,
+            "sentiment_distribution": {"positive": 0, "negative": 0, "neutral": 0},
+            "top_players": [],
+        }
+
+    transcript_ids = [t.id for t in transcripts]
+
+    # Get all analysis results for these transcripts
+    results = (
+        db.query(AnalysisResult)
+        .filter(AnalysisResult.transcript_id.in_(transcript_ids))
+        .all()
+    )
+
+    # Aggregate stats
+    player_stats = {}
+    sentiment_counts = {"positive": 0, "negative": 0, "neutral": 0}
+
+    for result in results:
+        # Sentiment distribution
+        if result.sentiment_label in sentiment_counts:
+            sentiment_counts[result.sentiment_label] += 1
+
+        # Per-player stats
+        player = db.query(Player).filter(Player.id == result.player_id).first()
+        if player:
+            if player.id not in player_stats:
+                player_stats[player.id] = {
+                    "id": str(player.id),
+                    "name": player.name,
+                    "mentions": 0,
+                    "sentiment_sum": 0,
+                    "count": 0,
+                }
+            player_stats[player.id]["mentions"] += result.mention_count
+            if result.sentiment_score is not None:
+                player_stats[player.id]["sentiment_sum"] += result.sentiment_score
+                player_stats[player.id]["count"] += 1
+
+    # Calculate averages and sort
+    top_players = []
+    for pid, stats in player_stats.items():
+        avg_sentiment = stats["sentiment_sum"] / stats["count"] if stats["count"] > 0 else 0
+        top_players.append({
+            "id": stats["id"],
+            "name": stats["name"],
+            "mentions": stats["mentions"],
+            "sentiment": avg_sentiment,
+            "sentiment_label": "positive" if avg_sentiment > 0.1 else "negative" if avg_sentiment < -0.1 else "neutral",
+        })
+
+    top_players.sort(key=lambda x: x["mentions"], reverse=True)
+
+    return {
+        "commentator": commentator_name,
+        "transcript_count": len(transcripts),
+        "players_analyzed": len(player_stats),
+        "sentiment_distribution": sentiment_counts,
+        "top_players": top_players[:10],
+    }
+
+
 @router.get("/compare/bias")
 async def compare_players_bias(
     player_ids: str = Query(..., description="Comma-separated player IDs"),

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, Users, Upload } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, Upload, GitCompare, Mic } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,6 +9,8 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Transcripts', href: '/transcripts', icon: FileText },
   { name: 'Players', href: '/players', icon: Users },
+  { name: 'Compare', href: '/compare', icon: GitCompare },
+  { name: 'Commentators', href: '/commentators', icon: Mic },
   { name: 'Upload', href: '/upload', icon: Upload },
 ];
 
